@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="km">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>គ្មានការតភ្ជាប់អ៊ីនធឺណិត - RAVI Platform</title>
+    <style>
+      :root {
+        --color-bg: #0f172a;
+        --color-card: #1e293b;
+        --color-primary: #ea580c;
+        --color-primary-hover: #c2410c;
+        --color-text-main: #f8fafc;
+        --color-text-muted: #94a3b8;
+      }
+
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        background-color: var(--color-bg);
+        color: var(--color-text-main);
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        min-height: screen;
+        min-height: 100vh;
+        display: flex;
+        flex-col: column;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+        text-align: center;
+      }
+
+      .container {
+        max-width: 440px;
+        width: 100%;
+        background-color: var(--color-card);
+        border: 1px solid #334155;
+        border-radius: 1.5rem;
+        padding: 2.5rem 2rem;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+      }
+
+      .icon-wrapper {
+        width: 72px;
+        height: 72px;
+        background-color: rgba(234, 88, 12, 0.15);
+        color: var(--color-primary);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.5rem;
+      }
+
+      .icon {
+        width: 36px;
+        height: 36px;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      h1 {
+        font-size: 1.25rem;
+        font-weight: 800;
+        margin-bottom: 0.75rem;
+        letter-spacing: -0.025em;
+        line-height: 1.4;
+      }
+
+      p {
+        font-size: 0.875rem;
+        color: var(--color-text-muted);
+        line-height: 1.6;
+        margin-bottom: 2rem;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 0.875rem 1.5rem;
+        background-color: var(--color-primary);
+        color: #ffffff;
+        border: none;
+        border-radius: 0.75rem;
+        font-size: 0.875rem;
+        font-weight: 700;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.2s;
+      }
+
+      .btn:hover {
+        background-color: var(--color-primary-hover);
+      }
+
+      .offline-badge {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        background-color: rgba(234, 88, 12, 0.1);
+        border: 1px solid rgba(234, 88, 12, 0.2);
+        border-radius: 9999px;
+        color: var(--color-primary);
+        font-size: 0.75rem;
+        font-weight: 700;
+        margin-bottom: 1.2rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="offline-badge">របៀបក្រៅបណ្តាញ (Offline Mode)</div>
+      <div class="icon-wrapper">
+        <svg class="icon" viewBox="0 0 24 24">
+          <line x1="1" y1="1" x2="23" y2="23"></line>
+          <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.5"></path>
+          <path d="M5 12.5a10.94 10.94 0 0 1 5.17-2.39"></path>
+          <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+          <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+          <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+          <line x1="12" y1="20" x2="12.01" y2="20"></line>
+        </svg>
+      </div>
+      <h1>គ្មានការតភ្ជាប់អ៊ីនធឺណិត</h1>
+      <p>
+        អ្នកកំពុងស្ថិតនៅក្នុងរបៀបក្រៅបណ្តាញ។ សូមពិនិត្យការតភ្ជាប់អ៊ីនធឺណិតរបស់អ្នកឡើងវិញ ដើម្បីទទួលបានមេរៀនថ្មីៗ និងការផ្សាយបន្តផ្ទាល់។ អ្នកនៅតែអាចមើលមេរៀនដែលបានទាញយករួច។
+      </p>
+      <button class="btn" onclick="window.location.reload()">
+        ព្យាយាមម្តងទៀត (Reload)
+      </button>
+    </div>
+  </body>
+</html>

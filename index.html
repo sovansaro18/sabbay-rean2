@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="km">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>RAVI Learning Platform</title>
+    
+    <!-- PWA Meta Tags -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ea580c" />
+    
+    <!-- iOS / Safari Mobile Optimization -->
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="RAVI" />
+    <link rel="apple-touch-icon" href="/icon-192.png" />
+    
+    <!-- Microsoft / Windows Tiles -->
+    <meta name="msapplication-TileImage" content="/icon-192.png" />
+    <meta name="msapplication-TileColor" content="#0f172a" />
+  </head>
+  <body class="antialiased select-none touch-manipulation">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Register Service Worker -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js')
+            .then((reg) => {
+              console.log('Service Worker registered successfully:', reg.scope);
+            })
+            .catch((err) => {
+              console.warn('Service Worker registration failed:', err);
+            });
+        });
+      }
+    </script>
+  </body>
+</html>
+

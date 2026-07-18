@@ -1,0 +1,6 @@
+{
+  "name": "RAVI Learning Platform",
+  "description": "វេទិកាសិក្សាចល័តបែប PWA ទំនើប និងលឿនរហ័ស ផ្តោតលើការទស្សនាវីដេអូមេរៀនភាសា ការសរសេរកូដ និងវិជ្ជាជីវៈជាច្រើន",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
