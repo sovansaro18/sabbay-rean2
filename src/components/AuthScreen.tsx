@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Shield, Mail, Lock, User, Check, ArrowRight, Chrome } from 'lucide-react';
+import { Shield, Mail, Lock, User, Check, ArrowRight } from 'lucide-react';
 import { UserProfile } from '../types';
+import { apiFetch } from '../utils/api';
 
 interface AuthScreenProps {
   onLoginSuccess: (user: UserProfile) => void;
@@ -29,7 +30,7 @@ export default function AuthScreen({ onLoginSuccess, isDarkMode }: AuthScreenPro
       }
       
       try {
-        const response = await fetch('/api/auth/login', {
+        const response = await apiFetch('/api/auth/login', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password }),
@@ -53,7 +54,7 @@ export default function AuthScreen({ onLoginSuccess, isDarkMode }: AuthScreenPro
       }
       
       try {
-        const response = await fetch('/api/auth/register', {
+        const response = await apiFetch('/api/auth/register', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, email, password }),
@@ -80,24 +81,7 @@ export default function AuthScreen({ onLoginSuccess, isDarkMode }: AuthScreenPro
     }
   };
 
-  const handleOAuthLogin = (platform: 'google' | 'facebook') => {
-    // Generate mock profile for OAuth platforms, or handle gracefully
-    const name = platform === 'google' ? 'សមាជិក Google' : 'សមាជិក Facebook';
-    const email = platform === 'google' ? 'google.user@gmail.com' : 'fb.user@facebook.com';
-    const avatar = platform === 'google' 
-      ? 'https://images.unsplash.com/photo-1492562080023-ab3db95bfbce?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80'
-      : 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80';
-      
-    const user: UserProfile = {
-      id: `oauth-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
-      name,
-      email,
-      avatarUrl: avatar,
-      isAdmin: false
-    };
-    localStorage.setItem('sabbay_user', JSON.stringify(user));
-    onLoginSuccess(user);
-  };
+
 
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 transition-colors duration-300 ${
@@ -216,37 +200,6 @@ export default function AuthScreen({ onLoginSuccess, isDarkMode }: AuthScreenPro
           </button>
         </form>
 
-
-
-        {/* OAuth Buttons */}
-        {mode === 'login' && (
-          <div className="mt-6 pt-5 border-t border-slate-200 dark:border-slate-800/80 space-y-3">
-            <div className="relative flex justify-center text-xs">
-              <span className={`px-2 z-10 font-sans text-slate-500 ${isDarkMode ? 'bg-slate-900' : 'bg-white'}`}>ឬបន្តជាមួយ</span>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3 pt-1">
-              <button
-                onClick={() => handleOAuthLogin('google')}
-                className={`py-2.5 px-4 border rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-                  isDarkMode ? 'border-slate-800 hover:bg-slate-800/40 text-slate-200' : 'border-slate-200 hover:bg-slate-50 text-slate-600'
-                }`}
-              >
-                <Chrome className="w-4 h-4 text-orange-500" />
-                <span>Google</span>
-              </button>
-              <button
-                onClick={() => handleOAuthLogin('google')} // We simulate either as clean user profiles
-                className={`py-2.5 px-4 border rounded-xl text-[11px] font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer ${
-                  isDarkMode ? 'border-slate-800 hover:bg-slate-800/40 text-slate-200' : 'border-slate-200 hover:bg-slate-50 text-slate-600'
-                }`}
-              >
-                <span className="w-4 h-4 font-black text-orange-600 text-center text-sm leading-none flex items-center justify-center">f</span>
-                <span>Facebook</span>
-              </button>
-            </div>
-          </div>
-        )}
 
         {/* Bottom Switch Mode */}
         <div className="mt-6 text-center text-xs text-slate-400">

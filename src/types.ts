@@ -1,11 +1,7 @@
-export type CategoryType = 
-  | 'chinese' 
-  | 'english' 
-  | 'computer' 
-  | 'general';
+export type CategoryType = string;
 
 export interface Category {
-  id: CategoryType;
+  id: string;
   label: string; // Khmer label
   labelEn: string; // English label
   iconName: string; // Lucide icon name
@@ -21,10 +17,20 @@ export interface Document {
   downloadedAt?: string; // If downloaded locally in client
 }
 
+export interface DownloadedItem {
+  id: string;
+  courseId: string;
+  courseTitle: string;
+  lessonId: string;
+  lessonTitle: string;
+  document: Document;
+}
+
 export interface Comment {
   id: string;
   courseId: string;
   lessonId: string;
+  userId: string;
   userName: string;
   userAvatar?: string;
   content: string;

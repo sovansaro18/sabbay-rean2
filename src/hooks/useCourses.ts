@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Course, Announcement, Comment } from '../types';
+import { Course, Announcement, Comment, Category } from '../types';
+import { apiFetch } from '../utils/api';
 
 export function useCourses() {
   const queryClient = useQueryClient();
@@ -8,7 +9,7 @@ export function useCourses() {
   const { data: courses = [], isLoading: isCoursesLoading, error: coursesError } = useQuery<Course[]>({
     queryKey: ['courses'],
     queryFn: async () => {
-      const res = await fetch('/api/courses');
+      const res = await apiFetch('/api/courses');
       if (!res.ok) {
         throw new Error('មិនអាចទាញយកទិន្នន័យវគ្គសិក្សាបានទេ');
       }
@@ -20,7 +21,7 @@ export function useCourses() {
   // Mutation: Create Course
   const createCourseMutation = useMutation({
     mutationFn: async (newCourse: Course) => {
-      const res = await fetch('/api/courses', {
+      const res = await apiFetch('/api/courses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newCourse),
@@ -39,7 +40,7 @@ export function useCourses() {
   // Mutation: Update Course
   const updateCourseMutation = useMutation({
     mutationFn: async ({ id, courseData }: { id: string; courseData: Course }) => {
-      const res = await fetch(`/api/courses/${id}`, {
+      const res = await apiFetch(`/api/courses/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(courseData),
@@ -58,7 +59,7 @@ export function useCourses() {
   // Mutation: Delete Course
   const deleteCourseMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/courses/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/courses/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         throw new Error('មិនអាចលុបវគ្គសិក្សាបានទេ');
       }
@@ -74,7 +75,7 @@ export function useCourses() {
   const { data: announcements = [], isLoading: isAnnouncementsLoading } = useQuery<Announcement[]>({
     queryKey: ['announcements'],
     queryFn: async () => {
-      const res = await fetch('/api/announcements');
+      const res = await apiFetch('/api/announcements');
       if (!res.ok) {
         throw new Error('មិនអាចទាញយកសេចក្តីប្រកាសបានទេ');
       }
@@ -85,7 +86,7 @@ export function useCourses() {
   // Mutation: Create Announcement
   const createAnnouncementMutation = useMutation({
     mutationFn: async (annData: Omit<Announcement, 'id' | 'date'> & { id?: string; date?: string }) => {
-      const res = await fetch('/api/announcements', {
+      const res = await apiFetch('/api/announcements', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(annData),
@@ -103,7 +104,7 @@ export function useCourses() {
   // Mutation: Delete Announcement
   const deleteAnnouncementMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/announcements/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         throw new Error('មិនអាចលុបសេចក្តីប្រកាសនេះបានទេ');
       }
@@ -119,7 +120,7 @@ export function useCourses() {
   const { data: allComments = [], isLoading: isAllCommentsLoading } = useQuery<Comment[]>({
     queryKey: ['comments-all'],
     queryFn: async () => {
-      const res = await fetch('/api/comments');
+      const res = await apiFetch('/api/comments');
       if (!res.ok) {
         throw new Error('មិនអាចទាញយកមតិយោបល់ទាំងអស់បានទេ');
       }
@@ -130,7 +131,7 @@ export function useCourses() {
   // Mutation: Create Comment
   const createCommentMutation = useMutation({
     mutationFn: async (commentData: { courseId: string; lessonId: string; content: string }) => {
-      const res = await fetch('/api/comments', {
+      const res = await apiFetch('/api/comments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(commentData),
@@ -151,7 +152,7 @@ export function useCourses() {
   // Mutation: Delete Comment
   const deleteCommentMutation = useMutation({
     mutationFn: async ({ id, courseId, lessonId }: { id: string; courseId?: string; lessonId?: string }) => {
-      const res = await fetch(`/api/comments/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/comments/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         throw new Error('មិនអាចលុបមតិយោបល់នេះបានឡើយ');
       }
@@ -194,7 +195,7 @@ export function useLessonComments(courseId: string, lessonId: string) {
   const { data: comments = [], isLoading: isCommentsLoading } = useQuery<Comment[]>({
     queryKey: ['comments', courseId, lessonId],
     queryFn: async () => {
-      const res = await fetch(`/api/comments/course/${courseId}/lesson/${lessonId}`);
+      const res = await apiFetch(`/api/comments/course/${courseId}/lesson/${lessonId}`);
       if (!res.ok) {
         throw new Error('មិនអាចទាញយកមតិយោបល់បានឡើយ');
       }
@@ -206,5 +207,83 @@ export function useLessonComments(courseId: string, lessonId: string) {
   return {
     comments,
     isCommentsLoading,
+  };
+}
+
+export function useCategories() {
+  const queryClient = useQueryClient();
+
+  // Query: Get all categories
+  const { data: categories = [], isLoading: isCategoriesLoading, error: categoriesError } = useQuery<Category[]>({
+    queryKey: ['categories'],
+    queryFn: async () => {
+      const res = await apiFetch('/api/categories');
+      if (!res.ok) {
+        throw new Error('មិនអាចទាញយកប្រភេទបានទេ');
+      }
+      return await res.json();
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Mutation: Create Category
+  const createCategoryMutation = useMutation({
+    mutationFn: async (newCat: Omit<Category, 'iconName'> & { iconName?: string }) => {
+      const res = await apiFetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...newCat, iconName: newCat.iconName || 'BookOpen' }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'មិនអាចបង្កើតប្រភេទបានទេ');
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+
+  // Mutation: Update Category
+  const updateCategoryMutation = useMutation({
+    mutationFn: async ({ id, categoryData }: { id: string; categoryData: Partial<Category> }) => {
+      const res = await apiFetch(`/api/categories/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(categoryData),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'មិនអាចកែសម្រួលប្រភេទបានទេ');
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+
+  // Mutation: Delete Category
+  const deleteCategoryMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const res = await apiFetch(`/api/categories/${id}`, { method: 'DELETE' });
+      if (!res.ok) {
+        throw new Error('មិនអាចលុបប្រភេទបានទេ');
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['categories'] });
+    },
+  });
+
+  return {
+    categories,
+    isCategoriesLoading,
+    categoriesError,
+    createCategory: createCategoryMutation.mutateAsync,
+    updateCategory: updateCategoryMutation.mutateAsync,
+    deleteCategory: deleteCategoryMutation.mutateAsync,
   };
 }

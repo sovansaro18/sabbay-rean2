@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Favorite } from '../types';
 import { useAuth } from './useAuth';
+import { apiFetch } from '../utils/api';
 
 export function useFavorites() {
   const { currentUser } = useAuth();
@@ -11,7 +12,7 @@ export function useFavorites() {
     queryKey: ['user-sync', currentUser?.id],
     queryFn: async () => {
       if (!currentUser?.id) return { favorites: [] };
-      const res = await fetch(`/api/users/${currentUser.id}/sync`);
+      const res = await apiFetch(`/api/users/${currentUser.id}/sync`);
       if (!res.ok) {
         throw new Error('មិនអាចទាញយកទិន្នន័យចូលចិត្តបានទេ');
       }
@@ -41,7 +42,7 @@ export function useFavorites() {
         const currentSync = queryClient.getQueryData<{ progressList?: any }>(['user-sync', currentUser.id]);
         const progressList = currentSync?.progressList || [];
 
-        const res = await fetch(`/api/users/${currentUser.id}/sync`, {
+        const res = await apiFetch(`/api/users/${currentUser.id}/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ favorites: updatedFavorites, progressList }),

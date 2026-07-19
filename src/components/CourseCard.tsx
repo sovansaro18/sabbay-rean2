@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BookOpen, User, Star, Award, TrendingUp, Image as ImageIcon } from 'lucide-react';
-import { Course } from '../types';
+import { Course, Category } from '../types';
 import { CATEGORIES } from '../data';
 
 interface CourseCardProps {
@@ -9,17 +9,19 @@ interface CourseCardProps {
   progressPercent?: number;
   onSelect: (course: Course) => void;
   isDarkMode: boolean;
+  categories?: Category[];
 }
 
-export default function CourseCard({ course, progressPercent, onSelect, isDarkMode }: CourseCardProps) {
+export default function CourseCard({ course, progressPercent, onSelect, isDarkMode, categories }: CourseCardProps) {
   const [imageError, setImageError] = useState(false);
 
   // Find category detail
-  const categoryDetail = CATEGORIES.find(c => c.id === course.category);
+  const activeCategories = categories && categories.length > 0 ? categories : CATEGORIES;
+  const categoryDetail = activeCategories.find(c => c.id === course.category);
   
-  // Rating & student indicators
-  const rating = course.rating || 4.8;
-  const students = course.studentCount || 1200;
+  // Rating indicator from database
+  const rating = course.rating;
+  const students = course.studentCount || 0;
 
   // Level color mapping
   const levelColors = {
@@ -99,10 +101,12 @@ export default function CourseCard({ course, progressPercent, onSelect, isDarkMo
         <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 space-y-3">
           <div className="flex items-center justify-between text-[11px] font-medium">
             {/* Rating Stars */}
-            <div className="flex items-center gap-1">
-              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-              <span className={`font-mono font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{rating.toFixed(1)}</span>
-            </div>
+            {rating !== undefined && rating > 0 && (
+              <div className="flex items-center gap-1">
+                <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                <span className={`font-mono font-bold ${isDarkMode ? 'text-slate-200' : 'text-slate-700'}`}>{rating.toFixed(1)}</span>
+              </div>
+            )}
 
             {/* Total lessons */}
             <div className="flex items-center gap-1 text-slate-500 dark:text-slate-400">

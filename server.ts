@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import { createServer as createViteServer } from "vite";
@@ -7,8 +8,9 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
+import crypto from "crypto";
 import { z } from "zod";
-import { INITIAL_COURSES, INITIAL_ANNOUNCEMENTS } from "./src/data";
+import { INITIAL_COURSES, INITIAL_ANNOUNCEMENTS } from "./server/seedData";
 
 // MongoDB connection string checks
 if (!process.env.MONGODB_URI) {
@@ -16,9 +18,16 @@ if (!process.env.MONGODB_URI) {
 }
 const MONGODB_URI = process.env.MONGODB_URI;
 
-// JWT secrets
-const JWT_SECRET = process.env.JWT_SECRET || "sabbay_secure_jwt_secret_2026_default_key";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "sabbay_secure_jwt_refresh_secret_2026_default_key";
+// JWT secrets check
+if (!process.env.JWT_SECRET) {
+  throw new Error("CRITICAL ERROR: JWT_SECRET environment variable is not defined!");
+}
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!process.env.JWT_REFRESH_SECRET) {
+  throw new Error("CRITICAL ERROR: JWT_REFRESH_SECRET environment variable is not defined!");
+}
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
 const generateAccessToken = (userId: string, isAdmin: boolean) => {
   return jwt.sign({ userId, isAdmin }, JWT_SECRET, { expiresIn: "15m" });
@@ -33,12 +42,63 @@ const app = express();
 app.set('trust proxy', 1);
 const PORT = 3000;
 
+// CSRF protection middleware
+const csrfProtection = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  // If no csrf_token cookie exists, generate and set one
+  if (!req.cookies["csrf_token"]) {
+    const csrfToken = crypto.randomBytes(24).toString("hex");
+    res.cookie("csrf_token", csrfToken, {
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 365 * 24 * 60 * 60 * 1000, // Long-lived
+    });
+    // Inject it so subsequent code in this request is aware of it
+    req.cookies["csrf_token"] = csrfToken;
+  }
+
+  // Set the CSRF token in the response header so the client can read and store it
+  res.setHeader("X-CSRF-Token", req.cookies["csrf_token"]);
+
+  // Exempt safe methods
+  const safeMethods = ["GET", "HEAD", "OPTIONS"];
+  if (safeMethods.includes(req.method)) {
+    return next();
+  }
+
+  // Verify CSRF token
+  const cookieToken = req.cookies["csrf_token"];
+  const headerToken = req.headers["x-csrf-token"] || req.headers["X-CSRF-Token"];
+
+  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+    console.warn(`CSRF validation failed. Method: ${req.method}, Path: ${req.path}. Cookie: ${cookieToken}, Header: ${headerToken}`);
+    return res.status(403).json({ error: "ការផ្ទៀងផ្ទាត់ CSRF បានបរាជ័យ (CSRF validation failed)!" });
+  }
+
+  next();
+};
+
 // Security Middlewares
 app.use(helmet({
-  contentSecurityPolicy: false,
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+      imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://*.ytimg.com"],
+      frameSrc: ["'self'", "https://www.youtube.com", "https://*.youtube.com"],
+      connectSrc: ["'self'", "ws:", "wss:", "https://*"], // allow local/Vite web socket connections & remote APIs
+      mediaSrc: ["'self'", "https://res.cloudinary.com", "https://*.googlevideo.com"],
+      frameAncestors: process.env.NODE_ENV !== "production"
+        ? ["'self'", "https://*.run.app", "https://*.google.com", "https://ai.studio", "https://*.aistudio.google", "https://*.googleusercontent.com"]
+        : ["'self'"],
+    },
+  },
+  xFrameOptions: process.env.NODE_ENV !== "production" ? false : { action: "sameorigin" },
 }));
 app.use(cookieParser());
 app.use(express.json());
+app.use(csrfProtection);
 
 // Rate Limiting
 const authRateLimiter = rateLimit({
@@ -98,7 +158,7 @@ const courseSchema = new mongoose.Schema({
   id: { type: String, required: true, unique: true },
   title: { type: String, required: true },
   description: { type: String, required: true },
-  category: { type: String, required: true, enum: ['chinese', 'english', 'computer', 'general'] },
+  category: { type: String, required: true },
   thumbnail: { type: String, required: true },
   level: { type: String, required: true, enum: ['មូលដ្ឋាន', 'មធ្យម', 'កម្រិតខ្ពស់'] },
   author: { type: String, required: true },
@@ -136,6 +196,16 @@ const commentSchema = new mongoose.Schema({
 
 const CommentModel = mongoose.model("Comment", commentSchema);
 
+// Category Schema & Model
+const categorySchema = new mongoose.Schema({
+  id: { type: String, required: true, unique: true },
+  label: { type: String, required: true },
+  labelEn: { type: String, required: true },
+  color: { type: String, required: true }
+}, { timestamps: true });
+
+const CategoryModel = mongoose.model("Category", categorySchema);
+
 // Connect to MongoDB
 mongoose.connect(MONGODB_URI)
   .then(async () => {
@@ -147,7 +217,14 @@ mongoose.connect(MONGODB_URI)
       const existingAdmin = await User.findOne({ email: adminEmail });
       
       if (!existingAdmin) {
-        const hashedPassword = await bcrypt.hash("123", 10);
+        // Generate random 16-character password
+        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+        let randomPassword = "";
+        for (let i = 0; i < 16; i++) {
+          randomPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+
+        const hashedPassword = await bcrypt.hash(randomPassword, 10);
         await User.create({
           name: "អ្នកគ្រប់គ្រងប្រព័ន្ធ SABBAY REAN",
           email: adminEmail,
@@ -155,7 +232,13 @@ mongoose.connect(MONGODB_URI)
           avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
           isAdmin: true
         });
-        console.log("Seeded default admin user into MongoDB.");
+        
+        console.log("==========================================================");
+        console.log("[SEED] CREATED DEFAULT ADMIN USER IN DATABASE.");
+        console.log(`Email:    ${adminEmail}`);
+        console.log(`Password: ${randomPassword}`);
+        console.log("PLEASE RECORD AND SECURE THESE CREDENTIALS FOR ADMIN LOGINS!");
+        console.log("==========================================================");
       }
     } catch (err) {
       console.error("Error checking/seeding admin user:", err);
@@ -214,6 +297,23 @@ mongoose.connect(MONGODB_URI)
       }
     } catch (err) {
       console.error("Error auto-seeding comments:", err);
+    }
+
+    // Auto-seed categories if empty
+    try {
+      const categoryCount = await CategoryModel.countDocuments();
+      if (categoryCount === 0) {
+        console.log("Category collection is empty. Seeding default categories...");
+        await CategoryModel.insertMany([
+          { id: 'chinese', label: 'ភាសាចិន', labelEn: 'Chinese Language', color: 'bg-red-500/10 text-red-600 border-red-500/20' },
+          { id: 'english', label: 'ភាសាអង់គ្លេស', labelEn: 'English Language', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+          { id: 'computer', label: 'កុំព្យូទ័រ និងបច្ចេកវិទ្យា', labelEn: 'Computer & IT', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+          { id: 'general', label: 'ចំណេះដឹងទូទៅ', labelEn: 'General Knowledge', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' }
+        ]);
+        console.log("Successfully seeded default categories.");
+      }
+    } catch (err) {
+      console.error("Error auto-seeding categories:", err);
     }
   })
   .catch((err) => {
@@ -274,7 +374,7 @@ const courseZodSchema = z.object({
   id: z.string().optional(),
   title: z.string().min(2, "ចំណងជើងវគ្គសិក្សាត្រូវតែមានយ៉ាងតិច ២ តួអក្សរ"),
   description: z.string().min(5, "ការពិពណ៌នាត្រូវតែមានយ៉ាងតិច ៥ តួអក្សរ"),
-  category: z.enum(['chinese', 'english', 'computer', 'general']),
+  category: z.string().min(1, "សូមបញ្ជាក់ប្រភេទវគ្គសិក្សា"),
   thumbnail: z.string().url("លីងរូបតំណាងមិនត្រឹមត្រូវ"),
   level: z.enum(['មូលដ្ឋាន', 'មធ្យម', 'កម្រិតខ្ពស់']),
   author: z.string().min(2, "ឈ្មោះអ្នកបង្រៀនត្រូវតែមានយ៉ាងតិច ២ តួអក្សរ"),
@@ -415,7 +515,7 @@ app.post("/api/auth/register", authRateLimiter, validateBody(registerSchema), as
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const isAdmin = emailLower === "admin@sabbayrean.com" || emailLower === "admin";
+    const isAdmin = emailLower === "admin@sabbayrean.com";
 
     const newUser = await User.create({
       name,
@@ -460,10 +560,7 @@ app.post("/api/auth/login", authRateLimiter, validateBody(loginSchema), async (r
     const { email, password } = req.body;
     const emailInput = email.toLowerCase();
     
-    // Support either email = 'admin' or email = 'admin@sabbayrean.com'
-    const targetEmail = emailInput === "admin" ? "admin@sabbayrean.com" : emailInput;
-    
-    const user = await User.findOne({ email: targetEmail });
+    const user = await User.findOne({ email: emailInput });
     if (!user) {
       return res.status(401).json({ error: "រកមិនឃើញគណនី ឬលេខសម្ងាត់មិនត្រឹមត្រូវ!" });
     }
@@ -527,6 +624,66 @@ app.get("/api/auth/me", authenticateUser, async (req: AuthRequest, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: "មានបញ្ហាបច្ចេកទេស" });
+  }
+});
+
+// API Routes - Categories Management
+app.get("/api/categories", async (req, res) => {
+  try {
+    const categories = await CategoryModel.find().sort({ createdAt: 1 });
+    res.json(categories);
+  } catch (error) {
+    res.status(500).json({ error: "មិនអាចទាញយកប្រភេទបានទេ" });
+  }
+});
+
+app.post("/api/categories", authenticateUser, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { id, label, labelEn, color } = req.body;
+    if (!id || !label || !labelEn || !color) {
+      return res.status(400).json({ error: "ព័ត៌មានមិនគ្រប់គ្រាន់" });
+    }
+    const exists = await CategoryModel.findOne({ id });
+    if (exists) {
+      return res.status(400).json({ error: "ប្រភេទនេះមានរួចហើយ" });
+    }
+    const newCat = new CategoryModel({ id, label, labelEn, color });
+    await newCat.save();
+    res.status(201).json(newCat);
+  } catch (error) {
+    res.status(500).json({ error: "មិនអាចបង្កើតប្រភេទបានទេ" });
+  }
+});
+
+app.put("/api/categories/:id", authenticateUser, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const { label, labelEn, color } = req.body;
+    const cat = await CategoryModel.findOne({ id });
+    if (!cat) {
+      return res.status(404).json({ error: "រកមិនឃើញប្រភេទឡើយ" });
+    }
+    if (label) cat.label = label;
+    if (labelEn) cat.labelEn = labelEn;
+    if (color) cat.color = color;
+    await cat.save();
+    res.json(cat);
+  } catch (error) {
+    res.status(500).json({ error: "មិនអាចកែសម្រួលប្រភេទបានទេ" });
+  }
+});
+
+app.delete("/api/categories/:id", authenticateUser, requireAdmin, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    const cat = await CategoryModel.findOne({ id });
+    if (!cat) {
+      return res.status(404).json({ error: "រកមិនឃើញប្រភេទឡើយ" });
+    }
+    await CategoryModel.deleteOne({ id });
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: "មិនអាចលុបប្រភេទបានទេ" });
   }
 });
 

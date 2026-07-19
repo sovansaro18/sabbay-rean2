@@ -3,6 +3,7 @@ import { Plus, Edit, Trash2, ChevronRight, Video, FileText, ListOrdered, X, Arro
 import { Course, Lesson, Document, CategoryType } from '../../types';
 import { CATEGORIES } from '../../data';
 import { useToast } from '../../context/ToastContext';
+import { useCategories } from '../../hooks/useCourses';
 
 interface CourseManagerProps {
   courses: Course[];
@@ -20,6 +21,8 @@ export default function CourseManager({
   isDarkMode
 }: CourseManagerProps) {
   const { toast, confirm } = useToast();
+  const { categories } = useCategories();
+  const activeCategories = categories && categories.length > 0 ? categories : CATEGORIES;
 
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isCreatingNewCourse, setIsCreatingNewCourse] = useState(false);
@@ -390,7 +393,7 @@ export default function CourseManager({
                       isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'
                     }`}
                   >
-                    {CATEGORIES.map(cat => (
+                    {activeCategories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.label}</option>
                     ))}
                   </select>

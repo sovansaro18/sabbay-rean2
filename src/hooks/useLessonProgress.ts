@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LessonProgress } from '../types';
 import { useAuth } from './useAuth';
+import { apiFetch } from '../utils/api';
 
 export function useLessonProgress() {
   const { currentUser } = useAuth();
@@ -11,7 +12,7 @@ export function useLessonProgress() {
     queryKey: ['user-sync', currentUser?.id],
     queryFn: async () => {
       if (!currentUser?.id) return { progressList: [] };
-      const res = await fetch(`/api/users/${currentUser.id}/sync`);
+      const res = await apiFetch(`/api/users/${currentUser.id}/sync`);
       if (!res.ok) {
         throw new Error('មិនអាចទាញយកទិន្នន័យវឌ្ឍនភាពសិក្សាបានទេ');
       }
@@ -39,7 +40,7 @@ export function useLessonProgress() {
         const currentSync = queryClient.getQueryData<{ favorites?: any }>(['user-sync', currentUser.id]);
         const favorites = currentSync?.favorites || [];
 
-        const res = await fetch(`/api/users/${currentUser.id}/sync`, {
+        const res = await apiFetch(`/api/users/${currentUser.id}/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ favorites, progressList: updatedProgress }),

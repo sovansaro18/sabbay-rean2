@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { UserProfile } from '../types';
+import { apiFetch } from '../utils/api';
 
 export function useAuth() {
   const queryClient = useQueryClient();
@@ -9,7 +10,7 @@ export function useAuth() {
     queryKey: ['auth-me'],
     queryFn: async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await apiFetch('/api/auth/me');
         if (res.status === 401 || res.status === 403) {
           return null;
         }
@@ -28,7 +29,7 @@ export function useAuth() {
   // Mutation: Register
   const registerMutation = useMutation({
     mutationFn: async (userData: { name: string; email: string; password: string; avatarUrl?: string }) => {
-      const res = await fetch('/api/auth/register', {
+      const res = await apiFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(userData),
@@ -48,7 +49,7 @@ export function useAuth() {
   // Mutation: Login
   const loginMutation = useMutation({
     mutationFn: async (credentials: { email: string; password: string }) => {
-      const res = await fetch('/api/auth/login', {
+      const res = await apiFetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(credentials),
@@ -70,7 +71,7 @@ export function useAuth() {
   // Mutation: Logout
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch('/api/auth/logout', { method: 'POST' });
+      const res = await apiFetch('/api/auth/logout', { method: 'POST' });
       if (!res.ok) {
         throw new Error('ការចាកចេញមានបញ្ហា');
       }
@@ -87,7 +88,7 @@ export function useAuth() {
   const { data: users = [], isLoading: isUsersLoading } = useQuery<UserProfile[]>({
     queryKey: ['users'],
     queryFn: async () => {
-      const res = await fetch('/api/users');
+      const res = await apiFetch('/api/users');
       if (!res.ok) {
         throw new Error('មិនអាចទាញយកបញ្ជីអ្នកប្រើប្រាស់បានទេ');
       }
@@ -99,7 +100,7 @@ export function useAuth() {
   // Mutation: Update User Role/Profile
   const updateUserMutation = useMutation({
     mutationFn: async ({ id, ...updateData }: Partial<UserProfile> & { id: string }) => {
-      const res = await fetch(`/api/users/${id}`, {
+      const res = await apiFetch(`/api/users/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updateData),
@@ -117,7 +118,7 @@ export function useAuth() {
   // Mutation: Delete User
   const deleteUserMutation = useMutation({
     mutationFn: async (id: string) => {
-      const res = await fetch(`/api/users/${id}`, { method: 'DELETE' });
+      const res = await apiFetch(`/api/users/${id}`, { method: 'DELETE' });
       if (!res.ok) {
         throw new Error('មិនអាចលុបគណនីនេះបានទេ');
       }

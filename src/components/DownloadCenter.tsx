@@ -19,6 +19,28 @@ interface DownloadCenterProps {
 }
 
 export default function DownloadCenter({ downloads, onRemoveDownload, onClearAllDownloads, isDarkMode }: DownloadCenterProps) {
+  const [cachedStatus, setCachedStatus] = React.useState<Record<string, boolean>>({});
+  const [openingId, setOpeningId] = React.useState<string | null>(null);
+
+  // Scan cache on mount and when downloads change
+  React.useEffect(() => {
+    async function checkCachedFiles() {
+      if (!('caches' in window)) return;
+      try {
+        const cache = await caches.open('sabbay-offline-files');
+        const status: Record<string, boolean> = {};
+        for (const item of downloads) {
+          const match = await cache.match(item.document.fileUrl);
+          status[item.id] = !!match;
+        }
+        setCachedStatus(status);
+      } catch (e) {
+        console.warn('Error checking cache status:', e);
+      }
+    }
+    checkCachedFiles();
+  }, [downloads]);
+
   // Compute total size
   const computeTotalSize = () => {
     let kb = 0;
@@ -32,6 +54,52 @@ export default function DownloadCenter({ downloads, onRemoveDownload, onClearAll
       }
     });
     return kb > 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${Math.round(kb)} KB`;
+  };
+
+  const handleOpenDocument = async (item: DownloadedItem) => {
+    setOpeningId(item.id);
+    const fileUrl = item.document.fileUrl;
+
+    if ('caches' in window) {
+      try {
+        const cache = await caches.open('sabbay-offline-files');
+        let cachedResponse = await cache.match(fileUrl);
+
+        // Try on-demand caching if not cached yet
+        if (!cachedResponse) {
+          try {
+            const response = await fetch(fileUrl, { mode: 'cors' });
+            if (response.ok) {
+              await cache.put(fileUrl, response.clone());
+              cachedResponse = response;
+              setCachedStatus(prev => ({ ...prev, [item.id]: true }));
+            }
+          } catch (fetchErr) {
+            console.warn('On-demand caching fetch failed:', fetchErr);
+          }
+        }
+
+        if (cachedResponse) {
+          const blob = await cachedResponse.blob();
+          const localUrl = URL.createObjectURL(blob);
+          const newWindow = window.open(localUrl, '_blank');
+          if (!newWindow) {
+            window.location.href = localUrl;
+          }
+          setOpeningId(null);
+          return;
+        }
+      } catch (err) {
+        console.warn('Cache API fetch or open error:', err);
+      }
+    }
+
+    // Fallback direct open
+    const newWindow = window.open(fileUrl, '_blank');
+    if (!newWindow) {
+      window.location.href = fileUrl;
+    }
+    setOpeningId(null);
   };
 
   return (
@@ -102,7 +170,7 @@ export default function DownloadCenter({ downloads, onRemoveDownload, onClearAll
                 </div>
                 
                 <div className="min-w-0">
-                  <h3 className="text-xs font-extrabold text-slate-200 dark:text-slate-100 truncate" title={item.document.title}>
+                  <h3 className="text-xs font-extrabold text-slate-800 dark:text-slate-100 truncate" title={item.document.title}>
                     {item.document.title}
                   </h3>
                   <p className="text-[10px] text-slate-400 mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -110,19 +178,28 @@ export default function DownloadCenter({ downloads, onRemoveDownload, onClearAll
                     <span className="text-slate-600 dark:text-slate-700">•</span>
                     <span>{item.lessonTitle}</span>
                     <span className="text-slate-600 dark:text-slate-700">•</span>
-                    <span className="font-mono">{item.document.fileSize || '1.0 MB'}</span>
+                    <span className="font-mono mr-1">{item.document.fileSize || '1.0 MB'}</span>
+                    <span className="text-slate-600 dark:text-slate-700">•</span>
+                    {cachedStatus[item.id] ? (
+                      <span className="text-emerald-500 font-bold">● ក្រៅបណ្តាញ (Cached Offline)</span>
+                    ) : (
+                      <span className="text-amber-500 font-bold">● មើលផ្ទាល់ (Online)</span>
+                    )}
                   </p>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
                 <button
-                  onClick={() => {
-                    alert(`កំពុងបើកឯកសារ៖ "${item.document.title}" (កម្មវិធីកំពុងដំណើរការក្នុងរបៀប PWA Offline Reader)`);
-                  }}
-                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-xl text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+                  disabled={openingId === item.id}
+                  onClick={() => handleOpenDocument(item)}
+                  className="px-4 py-2 bg-orange-600 hover:bg-orange-700 disabled:bg-orange-600/60 text-white font-bold rounded-xl text-[11px] flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
                 >
-                  <FolderOpen className="w-3.5 h-3.5" />
+                  {openingId === item.id ? (
+                    <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  ) : (
+                    <FolderOpen className="w-3.5 h-3.5" />
+                  )}
                   <span>បើកមើលឯកសារ</span>
                 </button>
                 

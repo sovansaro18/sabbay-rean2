@@ -8,23 +8,24 @@
   --font-display: "Bokor", cursive, system-ui;
 }
 
-/* Custom dark scrollbar for sleek premium feel */
-::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+/* Hide scrollbars globally to give a clean native mobile-app feel, keeping scrolling fully functional */
+html,
+body,
+.scrollbar-hide,
+.overflow-y-auto,
+.overflow-x-auto,
+.overflow-auto {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
 }
 
-::-webkit-scrollbar-track {
-  background: #020617; /* slate-950 */
-}
-
-::-webkit-scrollbar-thumb {
-  background: #1e293b; /* slate-800 */
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #334155; /* slate-700 */
+html::-webkit-scrollbar,
+body::-webkit-scrollbar,
+.scrollbar-hide::-webkit-scrollbar,
+.overflow-y-auto::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar,
+.overflow-auto::-webkit-scrollbar {
+  display: none !important;  /* Chrome, Safari and Opera */
 }
 
 body {
