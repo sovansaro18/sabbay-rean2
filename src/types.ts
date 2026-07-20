@@ -113,3 +113,8 @@ export interface AppSettings {
   playbackSpeedDefault: number;
   videoQuality: 'auto' | '1080p' | '720p' | '480p';
 }
+
+export function isValidCategory(value: string, categories: Category[]): boolean {
+  return categories.some(c => c.id === value);
+}
+

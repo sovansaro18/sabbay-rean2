@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { LayoutDashboard, BookOpen, Library, Users, Megaphone, MessageSquare, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useCourses } from '../hooks/useCourses';
@@ -11,10 +12,6 @@ import TeacherManager from './admin/TeacherManager';
 import AnnouncementManager from './admin/AnnouncementManager';
 import CommentModeration from './admin/CommentModeration';
 import UserList from './admin/UserList';
-
-interface AdminPanelProps {
-  isDarkMode: boolean;
-}
 
 type AdminSection = 'dashboard' | 'courses' | 'categories' | 'teachers' | 'announcements' | 'comments' | 'users';
 
@@ -54,7 +51,8 @@ function AdminDashboardSkeleton() {
   );
 }
 
-export default function AdminPanel({ isDarkMode }: AdminPanelProps) {
+export default function AdminPanel() {
+  const { isDarkMode } = useOutletContext<{ isDarkMode: boolean }>();
   const [adminSection, setAdminSection] = useState<AdminSection>('dashboard');
   
   // React Query server state hooks

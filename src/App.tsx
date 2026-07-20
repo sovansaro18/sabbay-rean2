@@ -443,7 +443,7 @@ const router = createBrowserRouter([
       },
       {
         path: 'admin/*',
-        element: <AdminPanel isDarkMode={false} />,
+        element: <AdminPanel />,
       },
     ],
   },

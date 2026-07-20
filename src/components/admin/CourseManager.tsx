@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Plus, Edit, Trash2, ChevronRight, Video, FileText, ListOrdered, X, ArrowLeft } from 'lucide-react';
-import { Course, Lesson, Document, CategoryType } from '../../types';
+import { Course, Lesson, Document, CategoryType, isValidCategory } from '../../types';
 import { CATEGORIES, isCspAllowedUrl } from '../../data';
 import { useToast } from '../../context/ToastContext';
 import { useCategories } from '../../hooks/useCourses';
@@ -95,6 +95,11 @@ export default function CourseManager({
     e.preventDefault();
     if (!courseTitle.trim() || !courseDesc.trim()) {
       toast.error('សូមបំពេញចំណងជើង និងការពិពណ៌នាវគ្គសិក្សា!');
+      return;
+    }
+
+    if (!isValidCategory(courseCategory, activeCategories)) {
+      toast.error('ប្រភេទវគ្គសិក្សាដែលបានជ្រើសរើសមិនត្រឹមត្រូវ! សូមជ្រើសរើសម្ដងទៀត។');
       return;
     }
 

@@ -1,66 +1,8 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { LessonProgress } from '../types';
-import { useAuth } from './useAuth';
-import { apiFetch } from '../utils/api';
+import { useUserSync } from './useUserSync';
 
 export function useLessonProgress() {
-  const { currentUser } = useAuth();
-  const queryClient = useQueryClient();
-
-  // Query to get favorites and progress (unified sync data)
-  const { data: syncData } = useQuery<{ progressList: LessonProgress[] }>({
-    queryKey: ['user-sync', currentUser?.id],
-    queryFn: async () => {
-      if (!currentUser?.id) return { progressList: [] };
-      const res = await apiFetch(`/api/users/${currentUser.id}/sync`);
-      if (!res.ok) {
-        throw new Error('មិនអាចទាញយកទិន្នន័យវឌ្ឍនភាពសិក្សាបានទេ');
-      }
-      return await res.json();
-    },
-    enabled: !!currentUser?.id,
-    placeholderData: () => {
-      const local = localStorage.getItem('sabbay_progress');
-      return { progressList: local ? JSON.parse(local) : [] };
-    },
-  });
-
-  const progressList: LessonProgress[] = currentUser?.id
-    ? (syncData?.progressList || [])
-    : (() => {
-        const local = localStorage.getItem('sabbay_progress');
-        return local ? JSON.parse(local) : [];
-      })();
-
-  // Mutation to sync progress back
-  const syncMutation = useMutation({
-    mutationFn: async (updatedProgress: LessonProgress[]) => {
-      if (currentUser?.id) {
-        // Fetch current favorites to avoid overwriting them
-        const currentSync = queryClient.getQueryData<{ favorites?: any }>(['user-sync', currentUser.id]);
-        const favorites = currentSync?.favorites || [];
-
-        const res = await apiFetch(`/api/users/${currentUser.id}/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ favorites, progressList: updatedProgress }),
-        });
-        if (!res.ok) {
-          throw new Error('ការរក្សាទុកទិន្នន័យវឌ្ឍនភាពបរាជ័យ');
-        }
-        return await res.json();
-      } else {
-        localStorage.setItem('sabbay_progress', JSON.stringify(updatedProgress));
-        return { progressList: updatedProgress };
-      }
-    },
-    onSuccess: (data) => {
-      queryClient.setQueryData(['user-sync', currentUser?.id], (prev: any) => ({
-        ...prev,
-        progressList: data.progressList,
-      }));
-    },
-  });
+  const { progressList, updateSync, isSyncing } = useUserSync();
 
   const toggleProgress = async (courseId: string, lessonId: string) => {
     const exists = progressList.find((p) => p.courseId === courseId && p.lessonId === lessonId);
@@ -86,17 +28,7 @@ export function useLessonProgress() {
       ];
     }
 
-    // Optimistic update
-    if (currentUser?.id) {
-      queryClient.setQueryData(['user-sync', currentUser.id], (prev: any) => ({
-        ...prev,
-        progressList: updated,
-      }));
-    } else {
-      localStorage.setItem('sabbay_progress', JSON.stringify(updated));
-    }
-
-    await syncMutation.mutateAsync(updated);
+    updateSync({ progressList: updated });
   };
 
   const updateWatchPosition = async (courseId: string, lessonId: string, seconds: number) => {
@@ -122,17 +54,7 @@ export function useLessonProgress() {
       ];
     }
 
-    // Optimistic update
-    if (currentUser?.id) {
-      queryClient.setQueryData(['user-sync', currentUser.id], (prev: any) => ({
-        ...prev,
-        progressList: updated,
-      }));
-    } else {
-      localStorage.setItem('sabbay_progress', JSON.stringify(updated));
-    }
-
-    await syncMutation.mutateAsync(updated);
+    updateSync({ progressList: updated });
   };
 
   const isCompleted = (courseId: string, lessonId: string) => {
@@ -150,6 +72,7 @@ export function useLessonProgress() {
     updateWatchPosition,
     isCompleted,
     getWatchPosition,
-    isSyncing: syncMutation.isPending,
+    isSyncing,
   };
 }
+
