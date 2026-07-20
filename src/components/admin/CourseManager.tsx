@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Plus, Edit, Trash2, ChevronRight, Video, FileText, ListOrdered, X, ArrowLeft } from 'lucide-react';
 import { Course, Lesson, Document, CategoryType } from '../../types';
-import { CATEGORIES } from '../../data';
+import { CATEGORIES, isCspAllowedUrl } from '../../data';
 import { useToast } from '../../context/ToastContext';
 import { useCategories } from '../../hooks/useCourses';
 
@@ -449,6 +449,11 @@ export default function CourseManager({
                     isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'
                   }`}
                 />
+                {!isCspAllowedUrl(courseThumbnail, 'image') && (
+                  <p className="text-[10px] text-orange-500 font-bold mt-1">
+                    ⚠️ អាសយដ្ឋាន URL រូបភាពនេះមិនស្ថិតក្នុងបញ្ជីអនុញ្ញាត (CSP Allowlist) ឡើយ។ រូបភាពនេះអាចនឹងមិនបង្ហាញ។
+                  </p>
+                )}
                 <div className="flex flex-wrap gap-2 pt-1">
                   {PRESET_THUMBNAILS.map((th, idx) => (
                     <button
@@ -538,6 +543,11 @@ export default function CourseManager({
                             isDarkMode ? 'bg-slate-950 border-slate-800 text-slate-100' : 'bg-slate-50 border-slate-200 text-slate-900'
                           }`}
                         />
+                        {!isCspAllowedUrl(lessonVideoUrl, 'video') && (
+                          <p className="text-[10px] text-orange-500 font-bold mt-1">
+                            ⚠️ អាសយដ្ឋាន URL វីដេអូនេះមិនស្ថិតក្នុងបញ្ជីអនុញ្ញាត (CSP Allowlist) ឡើយ។ វីដេអូនេះអាចនឹងមិនបង្ហាញ។
+                          </p>
+                        )}
                       </div>
 
                       <div className="grid grid-cols-2 gap-2">

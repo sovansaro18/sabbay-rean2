@@ -34,6 +34,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { useAuth } from './hooks/useAuth';
 import { useCourses } from './hooks/useCourses';
 import { useLessonProgress } from './hooks/useLessonProgress';
+import { useLocalStorage } from './hooks/useLocalStorage';
 
 // Pages
 import HomePage from './pages/HomePage';
@@ -60,21 +61,9 @@ function RootLayout() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
-    try {
-      const saved = localStorage.getItem('sabbay_darkmode');
-      return saved === 'true';
-    } catch {
-      return false;
-    }
-  });
+  const [isDarkMode, setIsDarkMode] = useLocalStorage<boolean>('sabbay_darkmode', false);
 
   useEffect(() => {
-    try {
-      localStorage.setItem('sabbay_darkmode', String(isDarkMode));
-    } catch (e) {
-      // ignore
-    }
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
     } else {
@@ -83,31 +72,15 @@ function RootLayout() {
   }, [isDarkMode]);
 
   // Statistics & History
-  const [historyLogs, setHistoryLogs] = useState<{ id: string; event: string; date: string }[]>(() => {
-    try {
-      const saved = localStorage.getItem('sabbay_history');
-      const defaultLogs = [
-        {
-          id: '1',
-          event: 'បានចុះឈ្មោះបង្កើតគណនីសិក្សាក្នុងប្រព័ន្ធ SABBAY REAN',
-          date: new Date().toISOString(),
-        },
-      ];
-      if (saved) return JSON.parse(saved);
-      return defaultLogs;
-    } catch {
-      return [];
-    }
-  });
+  const [historyLogs, setHistoryLogs] = useLocalStorage<{ id: string; event: string; date: string }[]>('sabbay_history', [
+    {
+      id: '1',
+      event: 'បានចុះឈ្មោះបង្កើតគណនីសិក្សាក្នុងប្រព័ន្ធ SABBAY REAN',
+      date: new Date().toISOString(),
+    },
+  ]);
 
-  const [downloads, setDownloads] = useState<DownloadedItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('sabbay_downloads');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [downloads, setDownloads] = useLocalStorage<DownloadedItem[]>('sabbay_downloads', []);
 
   // Save history logs helper
   const addHistoryLog = (eventText: string) => {
@@ -116,11 +89,7 @@ function RootLayout() {
       event: eventText,
       date: new Date().toISOString(),
     };
-    setHistoryLogs((prev) => {
-      const updated = [newLog, ...prev];
-      localStorage.setItem('sabbay_history', JSON.stringify(updated));
-      return updated;
-    });
+    setHistoryLogs((prev) => [newLog, ...prev]);
   };
 
   const isLoadingData = isAuthLoading || isCoursesLoading;

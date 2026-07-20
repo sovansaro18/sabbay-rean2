@@ -6,6 +6,7 @@ import { useAuth } from '../hooks/useAuth';
 import { useLessonProgress } from '../hooks/useLessonProgress';
 import { useFavorites } from '../hooks/useFavorites';
 import { useToast } from '../context/ToastContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import AuthScreen from '../components/AuthScreen';
 import { UserProfile } from '../types';
 
@@ -25,14 +26,7 @@ function StudentProfilePanel({ currentUser, isDarkMode }: { currentUser: UserPro
   }, [progressList, favorites]);
 
   // Load history logs from localStorage
-  const [historyLogs] = useState<{ id: string; event: string; date: string }[]>(() => {
-    try {
-      const saved = localStorage.getItem('sabbay_history');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [historyLogs] = useLocalStorage<{ id: string; event: string; date: string }[]>('sabbay_history', []);
 
   const handleLogoutClick = () => {
     confirm({

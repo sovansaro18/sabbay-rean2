@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
@@ -110,24 +111,42 @@ const csrfProtection = (req: express.Request, res: express.Response, next: expre
 };
 
 // Security Middlewares
-app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
-      imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://*.ytimg.com"],
-      frameSrc: ["'self'", "https://www.youtube.com", "https://*.youtube.com"],
-      connectSrc: ["'self'", "ws:", "wss:", "https://*"], // allow local/Vite web socket connections & remote APIs
-      mediaSrc: ["'self'", "https://res.cloudinary.com", "https://*.googlevideo.com"],
-      frameAncestors: process.env.NODE_ENV !== "production"
-        ? ["'self'", "https://*.run.app", "https://*.google.com", "https://ai.studio", "https://*.aistudio.google", "https://*.googleusercontent.com"]
-        : ["'self'"],
+app.use((req, res, next) => {
+  res.locals.cspNonce = crypto.randomBytes(16).toString("base64");
+  next();
+});
+
+app.use((req, res, next) => {
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        scriptSrc: ["'self'", `'nonce-${res.locals.cspNonce}'`],
+        styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+        fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
+        imgSrc: ["'self'", "data:", "https://images.unsplash.com", "https://*.ytimg.com"],
+        frameSrc: ["'self'", "https://www.youtube.com", "https://*.youtube.com"],
+        connectSrc: [
+          "'self'",
+          "ws:",
+          "wss:",
+          "https://images.unsplash.com",
+          "https://*.ytimg.com",
+          "https://www.youtube.com",
+          "https://*.youtube.com",
+          "https://res.cloudinary.com",
+          "https://*.googlevideo.com",
+          "https://www.w3.org"
+        ],
+        mediaSrc: ["'self'", "https://res.cloudinary.com", "https://*.googlevideo.com"],
+        frameAncestors: process.env.NODE_ENV !== "production"
+          ? ["'self'", "https://*.run.app", "https://*.google.com", "https://ai.studio", "https://*.aistudio.google", "https://*.googleusercontent.com"]
+          : ["'self'"],
+      },
     },
-  },
-  xFrameOptions: process.env.NODE_ENV !== "production" ? false : { action: "sameorigin" },
-}));
+    xFrameOptions: process.env.NODE_ENV !== "production" ? false : { action: "sameorigin" },
+  })(req, res, next);
+});
 app.use(cookieParser());
 app.use(express.json());
 app.use(csrfProtection);
@@ -265,10 +284,12 @@ mongoose.connect(MONGODB_URI)
           isAdmin: true
         });
         
+        const credentialsContent = `Email:    ${adminEmail}\nPassword: ${randomPassword}\n`;
+        fs.writeFileSync("./admin-credentials.txt", credentialsContent);
+
         console.log("==========================================================");
         console.log("[SEED] CREATED DEFAULT ADMIN USER IN DATABASE.");
-        console.log(`Email:    ${adminEmail}`);
-        console.log(`Password: ${randomPassword}`);
+        console.log("Default admin credentials have been written to ./admin-credentials.txt");
         console.log("PLEASE RECORD AND SECURE THESE CREDENTIALS FOR ADMIN LOGINS!");
         console.log("==========================================================");
       }
@@ -357,7 +378,9 @@ mongoose.connect(MONGODB_URI)
 const registerSchema = z.object({
   name: z.string().min(2, "ឈ្មោះត្រូវតែមានយ៉ាងតិច ២ តួអក្សរ"),
   email: z.string().email("អាសយដ្ឋានអ៊ីមែលមិនត្រឹមត្រូវ"),
-  password: z.string().min(3, "លេខសម្ងាត់ត្រូវតែមានយ៉ាងតិច ៣ តួអក្សរ"),
+  password: z.string()
+    .min(8, "លេខសម្ងាត់ត្រូវតែមានយ៉ាងតិច ៨ តួអក្សរ")
+    .regex(/^(?=.*[A-Za-z])(?=.*\d).+$/, "លេខសម្ងាត់ត្រូវមានយ៉ាងតិចអក្សរ និងលេខ"),
   avatarUrl: z.string().url().optional().or(z.literal('')),
 });
 
@@ -547,14 +570,13 @@ app.post("/api/auth/register", authRateLimiter, validateBody(registerSchema), as
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const isAdmin = emailLower === "admin@sabbayrean.com";
 
     const newUser = await User.create({
       name,
       email: emailLower,
       password: hashedPassword,
       avatarUrl: avatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-      isAdmin,
+      isAdmin: false,
     });
 
     const accessToken = generateAccessToken(newUser._id.toString(), newUser.isAdmin);

@@ -6,6 +6,8 @@ import { useAuth } from '../hooks/useAuth';
 import VideoPlayer from './VideoPlayer';
 import LessonSidebar from './LessonSidebar';
 import LessonTabs from './LessonTabs';
+import { useToast } from '../context/ToastContext';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface CourseDetailProps {
   course: Course;
@@ -32,6 +34,7 @@ export default function CourseDetail({
   relatedCourses = [],
   onSelectCourse,
 }: CourseDetailProps) {
+  const { toast, confirm } = useToast();
   const lessons = [...(course.lessons || [])].sort((a, b) => a.order - b.order);
 
   const [selectedLesson, setSelectedLesson] = useState<Lesson | null>(
@@ -60,14 +63,7 @@ export default function CourseDetail({
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
 
   // Bookmark / Notes states
-  const [lessonNotes, setLessonNotes] = useState<Record<string, string>>(() => {
-    try {
-      const saved = localStorage.getItem('sabbay_lesson_notes');
-      return saved ? JSON.parse(saved) : {};
-    } catch {
-      return {};
-    }
-  });
+  const [lessonNotes, setLessonNotes] = useLocalStorage<Record<string, string>>('sabbay_lesson_notes', {});
   const [currentNoteText, setCurrentNoteText] = useState('');
 
   // Lesson comments and actions using API-connected queries/mutations
@@ -148,8 +144,7 @@ export default function CourseDetail({
     if (!selectedLesson) return;
     const updated = { ...lessonNotes, [selectedLesson.id]: currentNoteText };
     setLessonNotes(updated);
-    localStorage.setItem('sabbay_lesson_notes', JSON.stringify(updated));
-    alert('រក្សាទុកកំណត់ត្រាដោយជោគជ័យ!');
+    toast.success('រក្សាទុកកំណត់ត្រាដោយជោគជ័យ!');
   };
 
   // Add Comment
@@ -166,7 +161,7 @@ export default function CourseDetail({
       setNewCommentText('');
     } catch (err) {
       console.error('Error adding comment:', err);
-      alert(
+      toast.error(
         'មិនអាចបញ្ជូនមតិយោបល់បានឡើយ៖ ' +
           (err instanceof Error ? err.message : 'សាកល្បងម្ដងទៀត')
       );
@@ -175,20 +170,25 @@ export default function CourseDetail({
 
   // Delete Comment
   const handleDeleteComment = async (commentId: string) => {
-    if (!confirm('តើអ្នកពិតជាចង់លុបមតិយោបល់នេះមែនទេ?')) return;
-    try {
-      await deleteComment({
-        id: commentId,
-        courseId: course.id,
-        lessonId: selectedLesson?.id,
-      });
-    } catch (err) {
-      console.error('Error deleting comment:', err);
-      alert(
-        'មិនអាចលុបមតិយោបល់បានឡើយ៖ ' +
-          (err instanceof Error ? err.message : 'សាកល្បងម្ដងទៀត')
-      );
-    }
+    confirm({
+      title: 'លុបមតិយោបល់?',
+      message: 'តើអ្នកពិតជាចង់លុបមតិយោបល់នេះមែនទេ?',
+      onConfirm: async () => {
+        try {
+          await deleteComment({
+            id: commentId,
+            courseId: course.id,
+            lessonId: selectedLesson?.id,
+          });
+        } catch (err) {
+          console.error('Error deleting comment:', err);
+          toast.error(
+            'មិនអាចលុបមតិយោបល់បានឡើយ៖ ' +
+              (err instanceof Error ? err.message : 'សាកល្បងម្ដងទៀត')
+          );
+        }
+      }
+    });
   };
 
   return (

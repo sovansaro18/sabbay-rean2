@@ -1,18 +1,12 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useOutletContext } from 'react-router-dom';
 import DownloadCenter from '../components/DownloadCenter';
 import { DownloadedItem } from '../types';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 export default function DownloadsPage() {
   const { isDarkMode } = useOutletContext<{ isDarkMode: boolean }>();
-  const [downloads, setDownloads] = useState<DownloadedItem[]>(() => {
-    try {
-      const saved = localStorage.getItem('sabbay_downloads');
-      return saved ? JSON.parse(saved) : [];
-    } catch {
-      return [];
-    }
-  });
+  const [downloads, setDownloads] = useLocalStorage<DownloadedItem[]>('sabbay_downloads', []);
 
   const handleRemoveDownload = async (id: string) => {
     const itemToRemove = downloads.find(d => d.id === id);
@@ -26,7 +20,6 @@ export default function DownloadsPage() {
     }
     const updated = downloads.filter(d => d.id !== id);
     setDownloads(updated);
-    localStorage.setItem('sabbay_downloads', JSON.stringify(updated));
   };
 
   const handleClearAllDownloads = async () => {
@@ -38,7 +31,6 @@ export default function DownloadsPage() {
       }
     }
     setDownloads([]);
-    localStorage.removeItem('sabbay_downloads');
   };
 
   return (
