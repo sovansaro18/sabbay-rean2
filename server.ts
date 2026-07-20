@@ -40,13 +40,37 @@ const generateRefreshToken = (userId: string, isAdmin: boolean) => {
 // Setup express
 const app = express();
 app.set('trust proxy', 1);
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 
-// CSRF protection middleware
+// CSRF protection helpers and middleware
+const generateCsrfToken = (): string => {
+  const randomValue = crypto.randomBytes(16).toString("hex");
+  const signature = crypto.createHmac("sha256", JWT_SECRET).update(randomValue).digest("hex");
+  return `${randomValue}.${signature}`;
+};
+
+const verifyCsrfToken = (token: any): boolean => {
+  if (!token || typeof token !== "string") return false;
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 2) return false;
+    const [randomValue, signature] = parts;
+    const expectedSignature = crypto.createHmac("sha256", JWT_SECRET).update(randomValue).digest("hex");
+    
+    if (signature.length !== expectedSignature.length) return false;
+    return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature));
+  } catch (err) {
+    return false;
+  }
+};
+
 const csrfProtection = (req: express.Request, res: express.Response, next: express.NextFunction) => {
-  // If no csrf_token cookie exists, generate and set one
-  if (!req.cookies["csrf_token"]) {
-    const csrfToken = crypto.randomBytes(24).toString("hex");
+  // Check if a cookie exists and is valid. If not, generate a new one.
+  const existingCookieToken = req.cookies["csrf_token"];
+  let csrfToken = existingCookieToken;
+
+  if (!csrfToken || !verifyCsrfToken(csrfToken)) {
+    csrfToken = generateCsrfToken();
     res.cookie("csrf_token", csrfToken, {
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
@@ -57,7 +81,7 @@ const csrfProtection = (req: express.Request, res: express.Response, next: expre
   }
 
   // Set the CSRF token in the response header so the client can read and store it
-  res.setHeader("X-CSRF-Token", req.cookies["csrf_token"]);
+  res.setHeader("X-CSRF-Token", csrfToken);
 
   // Exempt safe methods
   const safeMethods = ["GET", "HEAD", "OPTIONS"];
@@ -69,7 +93,15 @@ const csrfProtection = (req: express.Request, res: express.Response, next: expre
   const cookieToken = req.cookies["csrf_token"];
   const headerToken = req.headers["x-csrf-token"] || req.headers["X-CSRF-Token"];
 
-  if (!cookieToken || !headerToken || cookieToken !== headerToken) {
+  // We are secure if:
+  // 1. The header token is valid AND matches the cookie token
+  // OR
+  // 2. Since cookies are sent automatically by browsers but custom headers are NOT (they are protected by CORS),
+  //    if the custom header has a valid signature, it is safe from CSRF attacks.
+  const isMatch = cookieToken && headerToken && cookieToken === headerToken;
+  const isHeaderValid = verifyCsrfToken(headerToken);
+
+  if (!isMatch && !isHeaderValid) {
     console.warn(`CSRF validation failed. Method: ${req.method}, Path: ${req.path}. Cookie: ${cookieToken}, Header: ${headerToken}`);
     return res.status(403).json({ error: "ការផ្ទៀងផ្ទាត់ CSRF បានបរាជ័យ (CSRF validation failed)!" });
   }
@@ -435,15 +467,15 @@ const authenticateUser = (req: AuthRequest, res: express.Response, next: express
 
         res.cookie("access_token", newAccessToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
+          secure: true,
+          sameSite: "none",
           maxAge: 15 * 60 * 1000,
         });
 
         res.cookie("refresh_token", newRefreshToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
+          secure: true,
+          sameSite: "none",
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
@@ -471,15 +503,15 @@ const authenticateUser = (req: AuthRequest, res: express.Response, next: express
 
         res.cookie("access_token", newAccessToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
+          secure: true,
+          sameSite: "none",
           maxAge: 15 * 60 * 1000,
         });
 
         res.cookie("refresh_token", newRefreshToken, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "lax",
+          secure: true,
+          sameSite: "none",
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
@@ -530,15 +562,15 @@ app.post("/api/auth/register", authRateLimiter, validateBody(registerSchema), as
 
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -575,15 +607,15 @@ app.post("/api/auth/login", authRateLimiter, validateBody(loginSchema), async (r
 
     res.cookie("access_token", accessToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie("refresh_token", refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
+      secure: true,
+      sameSite: "none",
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { GraduationCap, ArrowRight } from 'lucide-react';
-import { motion } from 'motion/react';
+import { motion } from 'framer-motion';
 
 interface SplashScreenProps {
   onDismiss: () => void;
