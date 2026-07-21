@@ -31,6 +31,23 @@ export function useLessonProgress() {
     updateSync({ progressList: updated });
   };
 
+  const markCompleted = async (courseId: string, lessonId: string) => {
+    const exists = progressList.find((p) => p.courseId === courseId && p.lessonId === lessonId);
+    if (exists && exists.completed) return; // already completed, do nothing
+    let updated: LessonProgress[];
+    if (exists) {
+      updated = progressList.map((p) =>
+        p.lessonId === lessonId ? { ...p, completed: true, updatedAt: new Date().toISOString() } : p
+      );
+    } else {
+      updated = [
+        ...progressList,
+        { courseId, lessonId, completed: true, lastWatchedPosition: 0, updatedAt: new Date().toISOString() },
+      ];
+    }
+    updateSync({ progressList: updated });
+  };
+
   const updateWatchPosition = async (courseId: string, lessonId: string, seconds: number) => {
     const exists = progressList.find((p) => p.courseId === courseId && p.lessonId === lessonId);
     let updated: LessonProgress[];
@@ -69,6 +86,7 @@ export function useLessonProgress() {
   return {
     progressList,
     toggleProgress,
+    markCompleted,
     updateWatchPosition,
     isCompleted,
     getWatchPosition,

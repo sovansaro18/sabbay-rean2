@@ -8,6 +8,12 @@ import LessonSidebar from './LessonSidebar';
 import LessonTabs from './LessonTabs';
 import { useToast } from '../context/ToastContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { useLessonProgress } from '../hooks/useLessonProgress';
+
+const isDirectVideo = (url: string): boolean => {
+  if (!url) return false;
+  return url.includes('.mp4') || url.includes('.webm') || url.includes('.ogg') || url.includes('cloudinary.com') || url.includes('/video/upload/');
+};
 
 interface CourseDetailProps {
   course: Course;
@@ -55,6 +61,8 @@ export default function CourseDetail({
   // Custom Player Refs & States
   const videoRef = useRef<HTMLVideoElement>(null);
   const videoContainerRef = useRef<HTMLDivElement>(null);
+  const { markCompleted } = useLessonProgress();
+  const hasTriggeredCompleteRef = useRef<string | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
@@ -96,10 +104,22 @@ export default function CourseDetail({
     setIsPlaying(false);
     setCurrentTime(0);
     setDuration(0);
+    hasTriggeredCompleteRef.current = null;
     if (videoRef.current) {
       videoRef.current.load();
     }
   }, [selectedLesson]);
+
+  useEffect(() => {
+    if (!selectedLesson || !isDirectVideo(selectedLesson.videoUrl)) return;
+    if (duration <= 0) return;
+    if (hasTriggeredCompleteRef.current === selectedLesson.id) return;
+    const ratio = currentTime / duration;
+    if (ratio >= 0.9) {
+      hasTriggeredCompleteRef.current = selectedLesson.id;
+      markCompleted(course.id, selectedLesson.id);
+    }
+  }, [currentTime, duration, selectedLesson, course.id, markCompleted]);
 
   const isFavorite = (lessonId: string) => {
     return favorites.some((fav) => fav.courseId === course.id && fav.lessonId === lessonId);
@@ -249,29 +269,26 @@ export default function CourseDetail({
 
                 {/* Lesson Header Title */}
                 <div className="mt-5">
-                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-                    <div className="space-y-2 flex-1">
-                      <h2 className="font-sans font-black text-xl sm:text-2xl leading-snug text-slate-900 dark:text-white">
-                        {selectedLesson.title}
-                      </h2>
-                      <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-sans font-medium">
-                        <span className="font-bold text-orange-600 dark:text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
-                          លំដាប់ទី {selectedLesson.order}
-                        </span>
-                        <span>•</span>
-                        <span className="flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5 text-slate-400" />
-                          <span>រយៈពេល៖ {selectedLesson.duration} នាទី</span>
-                        </span>
-
-                      </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-[1fr_auto] gap-x-4 gap-y-3 sm:gap-y-2 items-center">
+                    <h2 className="col-span-2 sm:col-span-1 font-sans font-black text-xl sm:text-2xl leading-snug text-slate-900 dark:text-white sm:col-start-1 sm:row-start-1">
+                      {selectedLesson.title}
+                    </h2>
+                    
+                    <div className="col-span-1 sm:col-start-1 sm:row-start-2 flex items-center flex-wrap gap-x-3 gap-y-1 text-xs text-slate-600 dark:text-slate-400 font-sans font-medium">
+                      <span className="font-bold text-orange-600 dark:text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-md border border-orange-500/20">
+                        លំដាប់ទី {selectedLesson.order}
+                      </span>
+                      <span>•</span>
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <span>រយៈពេល៖ {selectedLesson.duration} នាទី</span>
+                      </span>
                     </div>
 
-                    {/* Lesson Core Controls */}
-                    <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                    <div className="col-span-1 justify-self-end sm:col-start-2 sm:row-start-1 sm:row-span-2 flex items-center gap-2 shrink-0 sm:self-center">
                       <button
                         onClick={() => onToggleFavorite(course.id, selectedLesson.id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                        className={`flex items-center justify-center gap-1.5 p-3 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
                           isFavorite(selectedLesson.id)
                             ? 'bg-orange-500/10 text-orange-600 border-orange-500/30'
                             : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white'
@@ -282,20 +299,35 @@ export default function CourseDetail({
                             isFavorite(selectedLesson.id) ? 'fill-orange-500 text-orange-500' : ''
                           }`}
                         />
-                        <span>{isFavorite(selectedLesson.id) ? 'បានចូលចិត្ត' : 'ចូលចិត្ត'}</span>
+                        <span className="hidden sm:inline">{isFavorite(selectedLesson.id) ? 'បានចូលចិត្ត' : 'ចូលចិត្ត'}</span>
                       </button>
 
-                      <button
-                        onClick={() => onToggleProgress(course.id, selectedLesson.id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
-                          isCompleted(selectedLesson.id)
-                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
-                            : 'bg-orange-600 text-white border-orange-500 hover:bg-orange-700'
-                        }`}
-                      >
-                        <CheckCircle className="w-3.5 h-3.5" />
-                        <span>{isCompleted(selectedLesson.id) ? 'រៀនរួចរាល់' : 'សម្គាល់ថាបានរៀន'}</span>
-                      </button>
+                      {isDirectVideo(selectedLesson.videoUrl) ? (
+                        <div
+                          className={`flex items-center justify-center gap-1.5 p-3 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold border transition-all ${
+                            isCompleted(selectedLesson.id)
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : 'bg-orange-600 text-white border-orange-500'
+                          }`}
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">
+                            {isCompleted(selectedLesson.id) ? 'បានបញ្ចប់' : 'កំពុងរៀន...'}
+                          </span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => onToggleProgress(course.id, selectedLesson.id)}
+                          className={`flex items-center justify-center gap-1.5 p-3 sm:px-3 sm:py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                            isCompleted(selectedLesson.id)
+                              ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+                              : 'bg-orange-600 text-white border-orange-500 hover:bg-orange-700'
+                          }`}
+                        >
+                          <CheckCircle className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">{isCompleted(selectedLesson.id) ? 'រៀនរួចរាល់' : 'សម្គាល់ថាបានរៀន'}</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

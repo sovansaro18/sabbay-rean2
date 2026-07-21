@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   BookOpen,
   FileText,
@@ -6,6 +6,8 @@ import {
   Download,
   Sparkles,
   Trash2,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Course, Lesson, Document, Comment } from '../types';
 
@@ -42,58 +44,108 @@ export default function LessonTabs({
   handleDeleteComment,
   onAddDownload,
 }: LessonTabsProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 5);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 5);
+  };
+
+  useEffect(() => {
+    checkScroll();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', checkScroll);
+    window.addEventListener('resize', checkScroll);
+    return () => {
+      el.removeEventListener('scroll', checkScroll);
+      window.removeEventListener('resize', checkScroll);
+    };
+  }, []);
+
+  useEffect(() => {
+    checkScroll();
+  }, [selectedLesson, currentLessonComments.length, currentNoteText]);
+
+  const scrollTabs = (direction: 'left' | 'right') => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollBy({ left: direction === 'left' ? -120 : 120, behavior: 'smooth' });
+  };
+
   return (
     <div className="font-sans">
       {/* Sub-Tabs Reorganized into a Neat Grid with Icons */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-2 bg-slate-100/80 dark:bg-slate-950/40 p-1.5 rounded-2xl border border-slate-200/40 dark:border-slate-800/40">
-        <button
-          onClick={() => setActiveInfoTab('details')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeInfoTab === 'details'
-              ? 'bg-orange-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
-          }`}
+      <div className="relative">
+        {canScrollLeft && (
+          <button
+            onClick={() => scrollTabs('left')}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 p-1 bg-white dark:bg-slate-900 rounded-full shadow-md border border-slate-200 dark:border-slate-800 cursor-pointer"
+          >
+            <ChevronLeft className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+          </button>
+        )}
+        <div
+          ref={scrollRef}
+          className="flex overflow-x-auto gap-2 bg-slate-100/80 dark:bg-slate-950/40 p-1.5 rounded-2xl border border-slate-200/40 dark:border-slate-800/40 scrollbar-hide"
         >
-          <BookOpen className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">ព័ត៌មានលម្អិត</span>
-          <span className="sm:hidden">ព័ត៌មាន</span>
-        </button>
-        <button
-          onClick={() => setActiveInfoTab('notes')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeInfoTab === 'notes'
-              ? 'bg-orange-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">កត់ត្រាខ្លីៗ ({currentNoteText ? 'មាន' : 'គ្មាន'})</span>
-          <span className="sm:hidden">កត់ត្រា</span>
-        </button>
-        <button
-          onClick={() => setActiveInfoTab('comments')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeInfoTab === 'comments'
-              ? 'bg-orange-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
-          }`}
-        >
-          <MessageSquare className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">ការពិភាក្សា ({currentLessonComments.length})</span>
-          <span className="sm:hidden">ពិភាក្សា ({currentLessonComments.length})</span>
-        </button>
-        <button
-          onClick={() => setActiveInfoTab('resources')}
-          className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-            activeInfoTab === 'resources'
-              ? 'bg-orange-600 text-white shadow-xs'
-              : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
-          }`}
-        >
-          <Download className="w-3.5 h-3.5 shrink-0" />
-          <span className="hidden sm:inline">ឯកសារភ្ជាប់ ({selectedLesson.documents?.length || 0})</span>
-          <span className="sm:hidden">ឯកសារ ({selectedLesson.documents?.length || 0})</span>
-        </button>
+          <button
+            onClick={() => setActiveInfoTab('details')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+              activeInfoTab === 'details'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
+            }`}
+          >
+            <BookOpen className="w-3.5 h-3.5 shrink-0" />
+            <span>ព័ត៌មានលម្អិត</span>
+          </button>
+          <button
+            onClick={() => setActiveInfoTab('notes')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+              activeInfoTab === 'notes'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5 shrink-0" />
+            <span>កត់ត្រាខ្លីៗ ({currentNoteText ? 'មាន' : 'គ្មាន'})</span>
+          </button>
+          <button
+            onClick={() => setActiveInfoTab('comments')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+              activeInfoTab === 'comments'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+            <span>ការពិភាក្សា ({currentLessonComments.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveInfoTab('resources')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+              activeInfoTab === 'resources'
+                ? 'bg-orange-600 text-white shadow-xs'
+                : 'text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-white/50 dark:hover:bg-slate-900/40'
+            }`}
+          >
+            <Download className="w-3.5 h-3.5 shrink-0" />
+            <span>ឯកសារភ្ជាប់ ({selectedLesson.documents?.length || 0})</span>
+          </button>
+        </div>
+        {canScrollRight && (
+          <button
+            onClick={() => scrollTabs('right')}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 p-1 bg-white dark:bg-slate-900 rounded-full shadow-md border border-slate-200 dark:border-slate-800 cursor-pointer"
+          >
+            <ChevronRight className="w-3.5 h-3.5 text-slate-600 dark:text-slate-300" />
+          </button>
+        )}
       </div>
 
       {/* Tab content */}
