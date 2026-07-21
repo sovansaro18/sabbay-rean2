@@ -20,14 +20,14 @@ if (!MONGODB_URI) {
 }
 
 // JWT secrets check
-const JWT_SECRET = process.env.JWT_SECRET || "default_development_secret_key_sabbay_rean";
-if (!process.env.JWT_SECRET) {
-  console.warn("WARNING: JWT_SECRET environment variable is not defined! Using a fallback for development.");
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("CRITICAL ERROR: JWT_SECRET environment variable is not defined!");
 }
 
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "default_development_refresh_secret_key_sabbay_rean";
-if (!process.env.JWT_REFRESH_SECRET) {
-  console.warn("WARNING: JWT_REFRESH_SECRET environment variable is not defined! Using a fallback for development.");
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
+if (!JWT_REFRESH_SECRET) {
+  throw new Error("CRITICAL ERROR: JWT_REFRESH_SECRET environment variable is not defined!");
 }
 
 const generateAccessToken = (userId: string, isAdmin: boolean) => {
