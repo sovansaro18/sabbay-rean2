@@ -20,7 +20,7 @@ const COLOR_PRESETS = [
 
 export default function CategoryManager({ courses, isDarkMode }: CategoryManagerProps) {
   const { categories, createCategory, updateCategory, deleteCategory, isCategoriesLoading } = useCategories();
-  const { toast } = useToast();
+  const { toast, confirm } = useToast();
 
   // Create form states
   const [newId, setNewId] = useState('');
@@ -95,21 +95,24 @@ export default function CategoryManager({ courses, isDarkMode }: CategoryManager
     }
   };
 
-  const handleDelete = async (catId: string) => {
+  const handleDelete = (catId: string) => {
     const courseCount = courses.filter((c) => c.category === catId).length;
     if (courseCount > 0) {
       toast.error(`មិនអាចលុបប្រភេទនេះបានទេ ព្រោះមានវគ្គសិក្សាចំនួន ${courseCount} កំពុងប្រើប្រាស់វា!`);
       return;
     }
-
-    if (!confirm('តើអ្នកពិតជាចង់លុបប្រភេទវគ្គសិក្សានេះមែនទេ?')) return;
-
-    try {
-      await deleteCategory(catId);
-      toast.success('បានលុបប្រភេទវគ្គសិក្សាដោយជោគជ័យ!');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'មានបញ្ហាក្នុងការលុបប្រភេទ!');
-    }
+    confirm({
+      title: 'លុបប្រភេទវគ្គសិក្សា?',
+      message: 'តើអ្នកពិតជាចង់លុបប្រភេទវគ្គសិក្សានេះមែនទេ?',
+      onConfirm: async () => {
+        try {
+          await deleteCategory(catId);
+          toast.success('បានលុបប្រភេទវគ្គសិក្សាដោយជោគជ័យ!');
+        } catch (err) {
+          toast.error(err instanceof Error ? err.message : 'មានបញ្ហាក្នុងការលុបប្រភេទ!');
+        }
+      }
+    });
   };
 
   return (

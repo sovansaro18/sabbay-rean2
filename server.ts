@@ -14,21 +14,21 @@ import { z } from "zod";
 import { INITIAL_COURSES, INITIAL_ANNOUNCEMENTS } from "./server/seedData";
 
 // MongoDB connection string checks
-if (!process.env.MONGODB_URI) {
-  throw new Error("CRITICAL ERROR: MONGODB_URI environment variable is not defined!");
-}
 const MONGODB_URI = process.env.MONGODB_URI;
+if (!MONGODB_URI) {
+  console.warn("WARNING: MONGODB_URI environment variable is not defined! Database features will be unavailable.");
+}
 
 // JWT secrets check
+const JWT_SECRET = process.env.JWT_SECRET || "default_development_secret_key_sabbay_rean";
 if (!process.env.JWT_SECRET) {
-  throw new Error("CRITICAL ERROR: JWT_SECRET environment variable is not defined!");
+  console.warn("WARNING: JWT_SECRET environment variable is not defined! Using a fallback for development.");
 }
-const JWT_SECRET = process.env.JWT_SECRET;
 
+const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "default_development_refresh_secret_key_sabbay_rean";
 if (!process.env.JWT_REFRESH_SECRET) {
-  throw new Error("CRITICAL ERROR: JWT_REFRESH_SECRET environment variable is not defined!");
+  console.warn("WARNING: JWT_REFRESH_SECRET environment variable is not defined! Using a fallback for development.");
 }
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET;
 
 const generateAccessToken = (userId: string, isAdmin: boolean) => {
   return jwt.sign({ userId, isAdmin }, JWT_SECRET, { expiresIn: "15m" });
@@ -151,6 +151,16 @@ app.use(cookieParser());
 app.use(express.json());
 app.use(csrfProtection);
 
+// Prevent DB routing errors when MONGODB_URI is not set
+app.use("/api", (req, res, next) => {
+  if (!process.env.MONGODB_URI) {
+    return res.status(503).json({
+      error: "សេវាកម្មទិន្នន័យ (Database) មិនត្រូវបានកំណត់រចនាសម្ព័ន្ធទេ! សូមកំណត់ MONGODB_URI ក្នុង Environment Variables។"
+    });
+  }
+  next();
+});
+
 // Rate Limiting
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
@@ -258,120 +268,124 @@ const categorySchema = new mongoose.Schema({
 const CategoryModel = mongoose.model("Category", categorySchema);
 
 // Connect to MongoDB
-mongoose.connect(MONGODB_URI)
-  .then(async () => {
-    console.log("Successfully connected to MongoDB.");
-    
-    // Auto-seed/Ensure Admin account exists in DB
-    try {
-      const adminEmail = "admin@sabbayrean.com";
-      const existingAdmin = await User.findOne({ email: adminEmail });
+if (MONGODB_URI) {
+  mongoose.connect(MONGODB_URI)
+    .then(async () => {
+      console.log("Successfully connected to MongoDB.");
       
-      if (!existingAdmin) {
-        // Generate random 16-character password
-        const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
-        let randomPassword = "";
-        for (let i = 0; i < 16; i++) {
-          randomPassword += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
-
-        const hashedPassword = await bcrypt.hash(randomPassword, 10);
-        await User.create({
-          name: "អ្នកគ្រប់គ្រងប្រព័ន្ធ SABBAY REAN",
-          email: adminEmail,
-          password: hashedPassword,
-          avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-          isAdmin: true
-        });
+      // Auto-seed/Ensure Admin account exists in DB
+      try {
+        const adminEmail = "admin@sabbayrean.com";
+        const existingAdmin = await User.findOne({ email: adminEmail });
         
-        const credentialsContent = `Email:    ${adminEmail}\nPassword: ${randomPassword}\n`;
-        fs.writeFileSync("./admin-credentials.txt", credentialsContent);
-
-        console.log("==========================================================");
-        console.log("[SEED] CREATED DEFAULT ADMIN USER IN DATABASE.");
-        console.log("Default admin credentials have been written to ./admin-credentials.txt");
-        console.log("PLEASE RECORD AND SECURE THESE CREDENTIALS FOR ADMIN LOGINS!");
-        console.log("==========================================================");
-      }
-    } catch (err) {
-      console.error("Error checking/seeding admin user:", err);
-    }
-
-    // Auto-seed courses if database collection is empty
-    try {
-      const courseCount = await CourseModel.countDocuments();
-      if (courseCount === 0) {
-        console.log("Course collection is empty. Seeding default courses...");
-        await CourseModel.insertMany(INITIAL_COURSES);
-        console.log("Successfully seeded default courses into MongoDB.");
-      }
-    } catch (err) {
-      console.error("Error auto-seeding courses:", err);
-    }
-
-    // Auto-seed announcements if empty
-    try {
-      const announcementCount = await AnnouncementModel.countDocuments();
-      if (announcementCount === 0) {
-        console.log("Announcement collection is empty. Seeding default announcements...");
-        await AnnouncementModel.insertMany(INITIAL_ANNOUNCEMENTS);
-        console.log("Successfully seeded default announcements into MongoDB.");
-      }
-    } catch (err) {
-      console.error("Error auto-seeding announcements:", err);
-    }
-
-    // Auto-seed comments if empty
-    try {
-      const commentCount = await CommentModel.countDocuments();
-      if (commentCount === 0) {
-        console.log("Comment collection is empty. Seeding default comments...");
-        await CommentModel.insertMany([
-          {
-            id: "comment-1",
-            courseId: "course-prog-1",
-            lessonId: "lesson-py-1",
-            userId: "seed-user-1",
-            userName: "សួង សុភ័ក្រ",
-            userAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-            content: "វីដេអូបង្រៀនបានល្អណាស់បាទ! ងាយយល់សម្រាប់អ្នកទើបតែរៀនដំបូង។"
-          },
-          {
-            id: "comment-2",
-            courseId: "course-prog-1",
-            lessonId: "lesson-py-1",
-            userId: "seed-user-2",
-            userName: "គឹម ស្រីនីន",
-            userAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
-            content: "សូមអរគុណលោកគ្រូសម្រាប់ការចែករំលែកមេរៀនដ៏មានតម្លៃនេះ!"
+        if (!existingAdmin) {
+          // Generate random 16-character password
+          const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*";
+          let randomPassword = "";
+          for (let i = 0; i < 16; i++) {
+            randomPassword += chars.charAt(Math.floor(Math.random() * chars.length));
           }
-        ]);
-        console.log("Successfully seeded default comments.");
-      }
-    } catch (err) {
-      console.error("Error auto-seeding comments:", err);
-    }
 
-    // Auto-seed categories if empty
-    try {
-      const categoryCount = await CategoryModel.countDocuments();
-      if (categoryCount === 0) {
-        console.log("Category collection is empty. Seeding default categories...");
-        await CategoryModel.insertMany([
-          { id: 'chinese', label: 'ភាសាចិន', labelEn: 'Chinese Language', color: 'bg-red-500/10 text-red-600 border-red-500/20' },
-          { id: 'english', label: 'ភាសាអង់គ្លេស', labelEn: 'English Language', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-          { id: 'computer', label: 'កុំព្យូទ័រ និងបច្ចេកវិទ្យា', labelEn: 'Computer & IT', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-          { id: 'general', label: 'ចំណេះដឹងទូទៅ', labelEn: 'General Knowledge', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' }
-        ]);
-        console.log("Successfully seeded default categories.");
+          const hashedPassword = await bcrypt.hash(randomPassword, 10);
+          await User.create({
+            name: "អ្នកគ្រប់គ្រងប្រព័ន្ធ SABBAY REAN",
+            email: adminEmail,
+            password: hashedPassword,
+            avatarUrl: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+            isAdmin: true
+          });
+          
+          const credentialsContent = `Email:    ${adminEmail}\nPassword: ${randomPassword}\n`;
+          fs.writeFileSync("./admin-credentials.txt", credentialsContent);
+
+          console.log("==========================================================");
+          console.log("[SEED] CREATED DEFAULT ADMIN USER IN DATABASE.");
+          console.log("Default admin credentials have been written to ./admin-credentials.txt");
+          console.log("PLEASE RECORD AND SECURE THESE CREDENTIALS FOR ADMIN LOGINS!");
+          console.log("==========================================================");
+        }
+      } catch (err) {
+        console.error("Error checking/seeding admin user:", err);
       }
-    } catch (err) {
-      console.error("Error auto-seeding categories:", err);
-    }
-  })
-  .catch((err) => {
-    console.error("Error connecting to MongoDB:", err);
-  });
+
+      // Auto-seed courses if database collection is empty
+      try {
+        const courseCount = await CourseModel.countDocuments();
+        if (courseCount === 0) {
+          console.log("Course collection is empty. Seeding default courses...");
+          await CourseModel.insertMany(INITIAL_COURSES);
+          console.log("Successfully seeded default courses into MongoDB.");
+        }
+      } catch (err) {
+        console.error("Error auto-seeding courses:", err);
+      }
+
+      // Auto-seed announcements if empty
+      try {
+        const announcementCount = await AnnouncementModel.countDocuments();
+        if (announcementCount === 0) {
+          console.log("Announcement collection is empty. Seeding default announcements...");
+          await AnnouncementModel.insertMany(INITIAL_ANNOUNCEMENTS);
+          console.log("Successfully seeded default announcements into MongoDB.");
+        }
+      } catch (err) {
+        console.error("Error auto-seeding announcements:", err);
+      }
+
+      // Auto-seed comments if empty
+      try {
+        const commentCount = await CommentModel.countDocuments();
+        if (commentCount === 0) {
+          console.log("Comment collection is empty. Seeding default comments...");
+          await CommentModel.insertMany([
+            {
+              id: "comment-1",
+              courseId: "course-prog-1",
+              lessonId: "lesson-py-1",
+              userId: "seed-user-1",
+              userName: "សួង សុភ័ក្រ",
+              userAvatar: "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+              content: "វីដេអូបង្រៀនបានល្អណាស់បាទ! ងាយយល់សម្រាប់អ្នកទើបតែរៀនដំបូង។"
+            },
+            {
+              id: "comment-2",
+              courseId: "course-prog-1",
+              lessonId: "lesson-py-1",
+              userId: "seed-user-2",
+              userName: "គឹម ស្រីនីន",
+              userAvatar: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80",
+              content: "សូមអរគុណលោកគ្រូសម្រាប់ការចែករំលែកមេរៀនដ៏មានតម្លៃនេះ!"
+            }
+          ]);
+          console.log("Successfully seeded default comments.");
+        }
+      } catch (err) {
+        console.error("Error auto-seeding comments:", err);
+      }
+
+      // Auto-seed categories if empty
+      try {
+        const categoryCount = await CategoryModel.countDocuments();
+        if (categoryCount === 0) {
+          console.log("Category collection is empty. Seeding default categories...");
+          await CategoryModel.insertMany([
+            { id: 'chinese', label: 'ភាសាចិន', labelEn: 'Chinese Language', color: 'bg-red-500/10 text-red-600 border-red-500/20' },
+            { id: 'english', label: 'ភាសាអង់គ្លេស', labelEn: 'English Language', color: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
+            { id: 'computer', label: 'កុំព្យូទ័រ និងបច្ចេកវិទ្យា', labelEn: 'Computer & IT', color: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
+            { id: 'general', label: 'ចំណេះដឹងទូទៅ', labelEn: 'General Knowledge', color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' }
+          ]);
+          console.log("Successfully seeded default categories.");
+        }
+      } catch (err) {
+        console.error("Error auto-seeding categories:", err);
+      }
+    })
+    .catch((err) => {
+      console.error("Error connecting to MongoDB:", err);
+    });
+} else {
+  console.warn("Skipping MongoDB connection because MONGODB_URI is not defined.");
+}
 
 // API Routes - Auth
 // Validation Schemas
@@ -455,6 +469,16 @@ const announcementZodSchema = z.object({
   date: z.string().optional(),
   category: z.enum(['system', 'new_course', 'maintenance']),
 });
+
+const categoryZodSchema = z.object({
+  id: z.string().min(1, "សូមបញ្ជាក់ ID ប្រភេទ")
+    .regex(/^[a-z0-9-_]+$/, "ID ត្រូវតែជាអក្សរឡាតាំងតូច លេខ dash ឬ underscore ប៉ុណ្ណោះ"),
+  label: z.string().min(2, "ឈ្មោះខ្មែរត្រូវតែមានយ៉ាងតិច ២ តួអក្សរ"),
+  labelEn: z.string().min(2, "ឈ្មោះអង់គ្លេសត្រូវតែមានយ៉ាងតិច ២ តួអក្សរ"),
+  color: z.string().min(1, "សូមជ្រើសរើសពណ៌"),
+});
+
+const categoryUpdateZodSchema = categoryZodSchema.partial();
 
 // Middleware for input validation
 const validateBody = (schema: z.ZodSchema) => {
@@ -691,7 +715,7 @@ app.get("/api/categories", async (req, res) => {
   }
 });
 
-app.post("/api/categories", authenticateUser, requireAdmin, async (req: AuthRequest, res) => {
+app.post("/api/categories", authenticateUser, requireAdmin, validateBody(categoryZodSchema), async (req: AuthRequest, res) => {
   try {
     const { id, label, labelEn, color } = req.body;
     if (!id || !label || !labelEn || !color) {
@@ -709,7 +733,7 @@ app.post("/api/categories", authenticateUser, requireAdmin, async (req: AuthRequ
   }
 });
 
-app.put("/api/categories/:id", authenticateUser, requireAdmin, async (req: AuthRequest, res) => {
+app.put("/api/categories/:id", authenticateUser, requireAdmin, validateBody(categoryUpdateZodSchema), async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
     const { label, labelEn, color } = req.body;
