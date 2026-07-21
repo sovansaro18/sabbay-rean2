@@ -30,6 +30,18 @@ if (!JWT_REFRESH_SECRET) {
   throw new Error("CRITICAL ERROR: JWT_REFRESH_SECRET environment variable is not defined!");
 }
 
+const ACCESS_TOKEN_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none" as const,
+};
+
+const REFRESH_TOKEN_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: true,
+  sameSite: "none" as const,
+};
+
 const generateAccessToken = (userId: string, isAdmin: boolean) => {
   return jwt.sign({ userId, isAdmin }, JWT_SECRET, { expiresIn: "15m" });
 };
@@ -513,24 +525,20 @@ const authenticateUser = (req: AuthRequest, res: express.Response, next: express
         const newRefreshToken = generateRefreshToken(decoded.userId, decoded.isAdmin);
 
         res.cookie("access_token", newAccessToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
+          ...ACCESS_TOKEN_COOKIE_OPTIONS,
           maxAge: 15 * 60 * 1000,
         });
 
         res.cookie("refresh_token", newRefreshToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
+          ...REFRESH_TOKEN_COOKIE_OPTIONS,
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         req.user = { userId: decoded.userId, isAdmin: decoded.isAdmin };
         return next();
       } catch (err) {
-        res.clearCookie("access_token");
-        res.clearCookie("refresh_token");
+        res.clearCookie("access_token", ACCESS_TOKEN_COOKIE_OPTIONS);
+        res.clearCookie("refresh_token", REFRESH_TOKEN_COOKIE_OPTIONS);
         return res.status(401).json({ error: "សញ្ញាសម្គាល់ការចូលបានហួសកំណត់! សូមចូលប្រព័ន្ធឡើងវិញ។" });
       }
     }
@@ -549,29 +557,25 @@ const authenticateUser = (req: AuthRequest, res: express.Response, next: express
         const newRefreshToken = generateRefreshToken(decoded.userId, decoded.isAdmin);
 
         res.cookie("access_token", newAccessToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
+          ...ACCESS_TOKEN_COOKIE_OPTIONS,
           maxAge: 15 * 60 * 1000,
         });
 
         res.cookie("refresh_token", newRefreshToken, {
-          httpOnly: true,
-          secure: true,
-          sameSite: "none",
+          ...REFRESH_TOKEN_COOKIE_OPTIONS,
           maxAge: 7 * 24 * 60 * 60 * 1000,
         });
 
         req.user = { userId: decoded.userId, isAdmin: decoded.isAdmin };
         return next();
       } catch (refreshErr) {
-        res.clearCookie("access_token");
-        res.clearCookie("refresh_token");
+        res.clearCookie("access_token", ACCESS_TOKEN_COOKIE_OPTIONS);
+        res.clearCookie("refresh_token", REFRESH_TOKEN_COOKIE_OPTIONS);
         return res.status(401).json({ error: "សញ្ញាសម្គាល់ការចូលបានហួសកំណត់! សូមចូលប្រព័ន្ធឡើងវិញ។" });
       }
     }
-    res.clearCookie("access_token");
-    res.clearCookie("refresh_token");
+    res.clearCookie("access_token", ACCESS_TOKEN_COOKIE_OPTIONS);
+    res.clearCookie("refresh_token", REFRESH_TOKEN_COOKIE_OPTIONS);
     return res.status(401).json({ error: "សញ្ញាសម្គាល់ការចូលមិនត្រឹមត្រូវឡើយ!" });
   }
 };
@@ -607,16 +611,12 @@ app.post("/api/auth/register", authRateLimiter, validateBody(registerSchema), as
     const refreshToken = generateRefreshToken(newUser._id.toString(), newUser.isAdmin);
 
     res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      ...ACCESS_TOKEN_COOKIE_OPTIONS,
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie("refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      ...REFRESH_TOKEN_COOKIE_OPTIONS,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -652,16 +652,12 @@ app.post("/api/auth/login", authRateLimiter, validateBody(loginSchema), async (r
     const refreshToken = generateRefreshToken(user._id.toString(), user.isAdmin);
 
     res.cookie("access_token", accessToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      ...ACCESS_TOKEN_COOKIE_OPTIONS,
       maxAge: 15 * 60 * 1000,
     });
 
     res.cookie("refresh_token", refreshToken, {
-      httpOnly: true,
-      secure: true,
-      sameSite: "none",
+      ...REFRESH_TOKEN_COOKIE_OPTIONS,
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
@@ -679,8 +675,8 @@ app.post("/api/auth/login", authRateLimiter, validateBody(loginSchema), async (r
 });
 
 app.post("/api/auth/logout", (req, res) => {
-  res.clearCookie("access_token");
-  res.clearCookie("refresh_token");
+  res.clearCookie("access_token", ACCESS_TOKEN_COOKIE_OPTIONS);
+  res.clearCookie("refresh_token", REFRESH_TOKEN_COOKIE_OPTIONS);
   res.json({ success: true, message: "បានចាកចេញពីប្រព័ន្ធដោយជោគជ័យ!" });
 });
 
